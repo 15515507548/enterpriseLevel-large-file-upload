@@ -66,11 +66,6 @@ export default {
     }
   },
   methods: {
-    //获取唯一标识
-    onlyVal() {
-      let ran = Math.random() * new Date()
-      return ran.toString(16).replace('.', '')
-    },
     handleLook(file) {
       if (file.isShow) {
         this.$message.warning('当前文件正在上传中，请上传结束之后再试')
