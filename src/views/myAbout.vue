@@ -283,13 +283,12 @@ export default {
     async httpRequest(file) {
       const idx = file.file.name.lastIndexOf('.')
       const iszip = file.file.name.slice(idx)
-      // const isLt2M = file.file.size / 1024 / 1024 <= 10
       if (!['.zip', '.png', '.rar', '.jpg', '.pdf'].includes(iszip)) {
         return this.$message.warning(`上传文件只能是zip,png,rar,jpg,pdf格式`)
       }
-      if (this.fileList.length >= 3) {
-        return this.$message.warning(`当前最多上传3个文件`)
-      }
+      // if (this.fileList.length >= 3) {
+      //   return this.$message.warning(`当前最多上传3个文件`)
+      // }
       //是否显示进度条
       file.isShow = true
       //进度条百分比的值
