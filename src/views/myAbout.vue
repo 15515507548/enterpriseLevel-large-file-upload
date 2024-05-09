@@ -131,7 +131,7 @@ export default {
               file.cancel.push(c)
             })
           })
-        //接口失败重试每个接口总共可以重试4次
+        //接口失败重试，每个接口总共可以发送4次请求，重试3次
         const sgfd = (fn, index = 0, max = 4) => {
           if (file.terminateRequest) {
             return
