@@ -113,6 +113,67 @@ export default {
         this.chunkUpload(file)
       }
     },
+    async chunkUpload(file) {
+      for (const chunk of file.chunks) {
+        if (file.terminateRequest) {
+          return
+        }
+        if (file.already.includes(chunk.filename)) {
+          this.complate(file, chunk)
+          continue
+        }
+        let fm = new FormData()
+        fm.append('file', chunk.file)
+        fm.append('filename', chunk.filename)
+        const fn = () =>
+          instance.post('/upload_chunk', fm, {
+            cancelToken: new axios.CancelToken(function (c) {
+              file.cancel.push(c)
+            })
+          })
+        //接口失败重试每个接口总共可以重试4次
+        const sgfd = (fn, index = 0, max = 4) => {
+          if (file.terminateRequest) {
+            return
+          }
+          if (index < max) {
+            const promise = fn()
+            file.lists.add(promise)
+            promise
+              .then((res) => {
+                if (+res.code === 0) {
+                  file.lists.delete(promise)
+                  this.complate(file, chunk)
+                  return
+                }
+                throw '当前切片上传失败，请您稍后再试~~'
+              })
+              .catch((err) => {
+                file.lists.delete(promise)
+                index++
+                sgfd(fn, index)
+              })
+          }
+        }
+        async function FSG() {
+          if (file.lists.size >= 3) {
+            // 3代表请求控制最大并发数
+            try {
+              await Promise.race(file.lists)
+            } catch (err) {
+              await FSG()
+            }
+          }
+        }
+        sgfd(fn)
+        await FSG()
+      }
+      await Promise.allSettled(file.lists)
+      if (file.loadSize !== file.file.size) {
+        this.fileList = this.fileList.filter((v) => v !== file)
+        this.$message.error('切片上传失败，请您稍后再试~~')
+      }
+    },
     // changeBuffer(file) {
     //   return new Promise((resolve) => {
     //     let fileReader = new FileReader()
@@ -154,7 +215,6 @@ export default {
       // 当所有切片都上传成功，我们合并切片
       console.log(percentage, 5000)
       if (file.loadSize < file.file.size) return
-      //file.percentage = 100
       try {
         let res = await instance.post(
           '/upload_merge',
@@ -206,73 +266,6 @@ export default {
       } catch (err) {
         file.already = []
         file.shouldUpload = undefined
-      }
-    },
-
-    async chunkUpload(file) {
-      for (const chunk of file.chunks) {
-        //上传过程中删除文件或离开页面后在重新上传文件需要传already，暂停后回复上传不需要传already
-        if (file.iconClass == 'el-icon-video-pause') {
-          if (file.already.includes(chunk.filename)) {
-            this.complate(file, chunk)
-            continue
-          }
-        }
-        let fm = new FormData()
-        fm.append('file', chunk.file)
-        fm.append('filename', chunk.filename)
-        const fn = () =>
-          instance.post('/upload_chunk', fm, {
-            cancelToken: new axios.CancelToken(function (c) {
-              file.cancel.push(c)
-            })
-          })
-        //接口失败重试每个接口总共可以重试4次
-        const sgfd = (fn, index = 0, max = 4) => {
-          if (file.terminateRequest) {
-            return
-          }
-          if (index < max) {
-            const promise = fn()
-            file.lists.add(promise)
-            promise
-              .then((res) => {
-                if (+res.code === 0) {
-                  file.lists.delete(promise)
-                  this.complate(file, chunk)
-                  return
-                }
-                throw '当前切片上传失败，请您稍后再试~~'
-              })
-              .catch((err) => {
-                file.lists.delete(promise)
-                index++
-                sgfd(fn, index)
-              })
-          }
-        }
-        async function FSG() {
-          if (file.lists.size >= 3) {
-            // 6代表请求控制最大并发数
-            try {
-              await Promise.race(file.lists)
-            } catch (err) {
-              await FSG()
-            }
-          }
-        }
-        if (file.terminateRequest) {
-          break
-        }
-        sgfd(fn)
-        await FSG()
-      }
-      await Promise.allSettled(file.lists)
-      if (file.iconClass == 'el-icon-video-pause') {
-        if (file.loadSize !== file.file.size) {
-          this.fileList = this.fileList.filter((v) => v !== file)
-          this.$message.error('切片上传失败，请您稍后再试~~')
-        }
       }
     },
     async httpRequest(file) {
