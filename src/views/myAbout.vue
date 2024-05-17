@@ -31,11 +31,11 @@
             <span class="colorHover">{{ file.file.name }}</span>
           </div>
           <div>
-            <span style="color: red" v-show="!file.hash"
+            <span style="color: red" v-show="!file.hashFlag"
               >计算文件hash<i class="el-icon-loading"></i
             ></span>
             <i
-              v-show="file.isShow && file.hash && file.isBigFile"
+              v-show="file.isShow && file.hashFlag && file.isBigFile"
               :class="file.iconClass"
               @click.stop="handlePausePlay(file)"
               style="margin-left: 10px"
@@ -101,21 +101,22 @@ export default {
           })
           file.terminateRequest = true
         }
-        console.log(file.already, file.chunks, file.loadSize, 123000)
+        console.log(file.chunks, file.terminateRequest, '暂停')
       } else {
         file.terminateRequest = false
         file.iconClass = 'el-icon-video-pause'
         await this.uploadAlready(file)
-        console.log(file.already, file.chunks, file.loadSize, 5209999990000)
         file.already.forEach((filename) => {
           file.chunks = file.chunks.filter((chunk) => chunk.filename != filename)
         })
+
         this.chunkUpload(file)
       }
     },
     async chunkUpload(file) {
       for (const chunk of file.chunks) {
         if (file.terminateRequest) {
+          console.log('暂停')
           return
         }
         if (file.already.includes(chunk.filename)) {
@@ -132,7 +133,7 @@ export default {
             })
           })
         //接口失败重试，每个接口总共可以发送4次请求，重试3次
-        const sgfd = (fn, index = 0, max = 4) => {
+        const sgfd = (chunk, fn, index = 0, max = 4) => {
           if (file.terminateRequest) {
             return
           }
@@ -151,7 +152,8 @@ export default {
               .catch((err) => {
                 file.lists.delete(promise)
                 index++
-                sgfd(fn, index)
+                console.log(4563210)
+                sgfd(chunk, fn, index)
               })
           }
         }
@@ -165,13 +167,16 @@ export default {
             }
           }
         }
-        sgfd(fn)
+        sgfd(chunk, fn)
         await FSG()
       }
       await Promise.allSettled(file.lists)
-      if (file.loadSize !== file.file.size) {
-        this.fileList = this.fileList.filter((v) => v !== file)
-        this.$message.error('切片上传失败，请您稍后再试~~')
+      console.log(file.loadSize, file.file.size, 741523000)
+      if (file.iconClass == 'el-icon-video-pause') {
+        if (file.loadSize !== file.file.size) {
+          this.fileList = this.fileList.filter((v) => v !== file)
+          this.$message.error('切片上传失败，请您稍后再试~~111')
+        }
       }
     },
     // changeBuffer(file) {
@@ -212,14 +217,14 @@ export default {
       file.loadSize += chunk.file.size
       const percentage = +((file.loadSize / file.file.size) * 100).toFixed(0)
       file.percentage = percentage
+      console.log(file.loadSize, file.file.size, 99999888888)
       // 当所有切片都上传成功，我们合并切片
-      console.log(percentage, 5000)
       if (file.loadSize < file.file.size) return
       try {
         let res = await instance.post(
           '/upload_merge',
           {
-            HASH: file.hash,
+            HASH: file.hashFlag,
             count: file.chunks.length
           },
           {
@@ -253,7 +258,7 @@ export default {
       try {
         let res = await instance.get('/upload_already', {
           params: {
-            HASH: file.hash,
+            HASH: file.hashFlag,
             suffix: file.suffix
           }
         })
@@ -287,7 +292,7 @@ export default {
       file.iconClass = 'el-icon-video-pause'
       this.fileList.push(file)
       let { HASH, suffix } = await this.changeBuffer(file.file)
-      file.hash = HASH
+      file.hashFlag = HASH
       file.suffix = suffix
       file.isBigFile = file.file.size > 5 * 1024 * 1024
       if (file.isBigFile) {
@@ -311,6 +316,7 @@ export default {
           })
           file.loadSize += chunkSize
         }
+        console.log(file, file.chunks, 6321000)
         // 取消ajax的数组集合
         file.cancel = []
         //用于下面计算滚动条所以需要重置为0
