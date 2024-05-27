@@ -179,6 +179,7 @@ export default {
         }
       }
     },
+
     // changeBuffer(file) {
     //   return new Promise((resolve) => {
     //     let fileReader = new FileReader()
