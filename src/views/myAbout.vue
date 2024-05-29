@@ -126,19 +126,23 @@ export default {
         let fm = new FormData()
         fm.append('file', chunk.file)
         fm.append('filename', chunk.filename)
-        const fn = () =>
-          instance.post('/upload_chunk', fm, {
+        const fn = () => {
+          console.log(chunk, 111111)
+          return instance.post('/upload_chunk11', fm, {
             cancelToken: new axios.CancelToken(function (c) {
               file.cancel.push(c)
             })
           })
+        }
+
         //接口失败重试，每个接口总共可以发送4次请求，重试3次
-        const sgfd = (chunk, fn, index = 0, max = 4) => {
+        const sgfd = (index = 0, max = 4) => {
           if (file.terminateRequest) {
             return
           }
           if (index < max) {
             const promise = fn()
+            console.log(chunk, 2222222)
             file.lists.add(promise)
             promise
               .then((res) => {
@@ -152,8 +156,7 @@ export default {
               .catch((err) => {
                 file.lists.delete(promise)
                 index++
-                console.log(4563210)
-                sgfd(chunk, fn, index)
+                sgfd(index)
               })
           }
         }
@@ -167,7 +170,7 @@ export default {
             }
           }
         }
-        sgfd(chunk, fn)
+        sgfd()
         await FSG()
       }
       await Promise.allSettled(file.lists)
